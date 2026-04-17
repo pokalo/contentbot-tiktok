@@ -1,0 +1,71 @@
+# Environment variables (SECRETS!)
+.env
+.env.local
+.env.production
+
+# Tokens and credentials
+tiktok_token.json
+tiktok_token.json.backup
+code_verifier.txt
+pending_auth_code.txt
+auth_code.txt
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+ENV/
+env/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+logs/
+
+# Test videos (if not needed)
+test_video.mp4
+*.mp4
+*.mov
+*.avi
+!sample_video.mp4
+
+# Screenshots
+screenshot_*.png
+*.png
+
+# Temporary files
+tmp/
+temp/
+*.tmp
