@@ -59,13 +59,30 @@ def get_reddit_videos(subreddit="all", limit=25):
     return videos
 
 def download_video(url, output_path):
-    """Download video using yt-dlp"""
-    cmd = ["yt-dlp", "-o", output_path, "-c", "--no-warnings", url]
+    """Download video using yt-dlp с индикатором прогресса"""
+    print(f"  -> Качаю видео...")
+    cmd = ["yt-dlp", "-o", output_path, "-c", "--no-warnings", 
+          "--newline", "-v", url]
     
     try:
-        result = subprocess.run(cmd, capture_output=True, timeout=120)
-        if result.returncode == 0:
+        # Используем Popen для real-time вывода
+        process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, 
+                                  text=True, bufsize=1)
+        
+        for line in process.stdout:
+            # Показываем прогресс
+            if "%" in line or "downloading" in line.lower():
+                print(f"  {line.strip()[:80]}")
+            elif line.strip():
+                 print(f"  {line.strip()[:60]}")
+        
+        process.wait()
+        
+        if process.returncode == 0:
+            print(f"  -> Готово!")
             return True
+        else:
+            print(f"  -> Ошибка загрузки")
     except Exception as e:
         print(f"Error: {e}")
     return False
