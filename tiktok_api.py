@@ -180,10 +180,14 @@ def save_token(token_data):
 def refresh_token():
     """Обновление токена через refresh_token"""
     token = load_token()
-    if not token:
-        return None
     
-    refresh = token.get("refresh_token")
+    # Check environment variable first (for GitHub Actions)
+    import os
+    env_refresh = os.environ.get("TIKTOK_REFRESH_TOKEN")
+    if env_refresh:
+        refresh = env_refresh
+    else:
+        refresh = token.get("refresh_token") if token else None
     if not refresh:
         log("No refresh_token in file", "error")
         return None
