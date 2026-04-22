@@ -58,4 +58,26 @@ def run_full_cycle():
         return False
 
 if __name__ == "__main__":
-    run_full_cycle()
+    success = run_full_cycle()
+    
+    # Очистка после успешной публикации
+    if success:
+        print("\n[Очистка] Удаляю старые видео...")
+        os.makedirs("downloads", exist_ok=True)
+        os.makedirs("processed", exist_ok=True)
+        
+        for folder in ["downloads", "processed"]:
+            files = []
+            for f in os.listdir(folder):
+                if f.endswith(".mp4"):
+                    path = os.path.join(folder, f)
+                    files.append((os.path.getmtime(path), path))
+            
+            # Удаляем все кроме последних 2х
+            files.sort(reverse=True)
+            for _, path in files[2:]:
+                try:
+                    os.remove(path)
+                    print(f"  Удалено: {path}")
+                except:
+                    pass
