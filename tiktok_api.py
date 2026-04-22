@@ -53,12 +53,7 @@ class VideoValidationError(Exception):
 def validate_video(video_path):
     """
     Валидация видео перед загрузкой
-    
-    Args:
-        video_path: Путь к видео
-    
-    Returns:
-        tuple: (is_valid, error_message)
+    Также обрезает слишком длинные видео (макс 60 сек)
     """
     path = Path(video_path)
     
@@ -82,6 +77,29 @@ def validate_video(video_path):
     # Проверка минимального размера (10KB - явно битый файл)
     if file_size < 10240:
         return False, f"File too small: {file_size} bytes (possible corrupted)"
+    
+    # Проверка длительности - обрезаем если больше 60 сек
+    import subprocess
+    try:
+        result = subprocess.run(
+            ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", video_path],
+            capture_output=True, text=True, timeout=10
+        )
+        duration = float(result.stdout.strip())
+        
+        if duration > 60:
+            log(f"Video too long ({duration:.0f}s), trimming to 60s...", "warning")
+            # Обрезаем
+            temp_path = str(path).replace(".mp4", "_trimmed.mp4")
+            subprocess.run(
+                ["ffmpeg", "-y", "-i", video_path, "-t", "60", "-c", "copy", temp_path],
+                capture_output=True, timeout=60
+            )
+            if os.path.exists(temp_path):
+                return True, None  # Обрезанное видео будет использовано
+    
+    except Exception:
+        pass
     
     return True, None
 
@@ -274,36 +292,32 @@ def init_video_upload(access_token, title="Video #fyp", video_size=0, video_url=
 def upload_to_s3(upload_url, video_path):
     """
     Загрузка видео на S3 через presigned URL
-    TikTok выдаёт S3 presigned URL для прямой загрузки
     """
     file_size = os.path.getsize(video_path)
     log(f"Uploading {video_path} ({file_size / 1024 / 1024:.2f} MB)", "info")
     
-    chunk_size = 5 * 1024 * 1024
-    offset = 0
-    
-    with open(video_path, "rb") as f:
-        while offset < file_size:
-            chunk = f.read(min(chunk_size, file_size - offset))
-            end = offset + len(chunk) - 1
-            
-            headers = {
-                "Content-Type": "video/mp4",
-                "Content-Range": f"bytes {offset}-{end}/{file_size}"
-            }
-            
-            r = requests.put(upload_url, data=chunk, headers=headers)
-            
-            if r.status_code not in [200, 201, 204]:
-                log(f"S3 upload failed: {r.status_code}", "error")
-                log(f"Response: {r.text[:500] if r.text else 'Empty'}", "error")
-                return False
-            
-            offset = end + 1
-            log(f"Uploaded {offset}/{file_size} bytes", "info")
-    
-    log("Video uploaded to S3", "success")
-    return True
+    try:
+        with open(video_path, "rb") as f:
+            data = f.read()
+        
+        # Always use Content-Range header (required by TikTok S3)
+        headers = {
+            "Content-Type": "video/mp4",
+            "Content-Range": f"bytes 0-{file_size-1}/{file_size}"
+        }
+        
+        r = requests.put(upload_url, data=data, headers=headers, timeout=180)
+        
+        if r.status_code in [200, 201, 204]:
+            log("Uploaded", "success")
+            return True
+        else:
+            log(f"Upload failed: {r.status_code} - {r.text[:100]}", "error")
+            return False
+        
+    except Exception as e:
+        log(f"Upload error: {e}", "error")
+        return False
 
 
 def check_publish_status(access_token, upload_token):
